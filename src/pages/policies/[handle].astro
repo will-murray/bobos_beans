@@ -1,0 +1,35 @@
+---
+import { gql } from '@shopify/hydrogen';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+
+const POLICIES_QUERY = gql(`
+  query Policies {
+    shop {
+      privacyPolicy { title handle body }
+      refundPolicy { title handle body }
+      shippingPolicy { title handle body }
+      termsOfService { title handle body }
+      subscriptionPolicy { title handle body }
+    }
+  }
+`);
+
+const { handle } = Astro.params;
+const { data } = await Astro.locals.storefront.graphql(POLICIES_QUERY);
+const shop = data?.shop;
+const policy = [
+  shop?.privacyPolicy,
+  shop?.refundPolicy,
+  shop?.shippingPolicy,
+  shop?.termsOfService,
+  shop?.subscriptionPolicy,
+].find((p) => p?.handle === handle);
+if (!policy) return Astro.rewrite('/404');
+---
+
+<BaseLayout title={policy.title}>
+  <article>
+    <h1>{policy.title}</h1>
+    <div set:html={policy.body} />
+  </article>
+</BaseLayout>

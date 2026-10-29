@@ -1,0 +1,50 @@
+---
+import { gql } from '@shopify/hydrogen';
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+
+const BLOG_QUERY = gql(`
+  query Blog($handle: String!) {
+    blog(handle: $handle) {
+      id
+      title
+      handle
+      seo { title description }
+      articles(first: 20, sortKey: PUBLISHED_AT, reverse: true) {
+        nodes {
+          id
+          title
+          handle
+          excerpt
+          publishedAt
+          image { url altText }
+        }
+      }
+    }
+  }
+`);
+
+const { blogHandle } = Astro.params;
+const { data } = await Astro.locals.storefront.graphql(BLOG_QUERY, {
+  variables: { handle: blogHandle! },
+});
+const blog = data?.blog;
+if (!blog) return Astro.rewrite('/404');
+const articles = blog.articles.nodes;
+---
+
+<BaseLayout title={blog.seo?.title ?? blog.title} description={blog.seo?.description}>
+  <h1>{blog.title}</h1>
+  {articles.length === 0 ? (
+    <p>No posts yet.</p>
+  ) : (
+    <ul>
+      {articles.map((a) => (
+        <li>
+          <a href={`/blogs/${blog.handle}/${a.handle}`}>{a.title}</a>
+          <time datetime={a.publishedAt}>{new Date(a.publishedAt).toLocaleDateString('en-CA')}</time>
+          {a.excerpt && <p>{a.excerpt}</p>}
+        </li>
+      ))}
+    </ul>
+  )}
+</BaseLayout>

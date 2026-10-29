@@ -1,0 +1,28 @@
+---
+import { gql } from '@shopify/hydrogen';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+
+const COLLECTIONS_QUERY = gql(`
+  query Collections {
+    collections(first: 50) {
+      nodes { id title handle image { url altText } }
+    }
+  }
+`);
+
+const { data } = await Astro.locals.storefront.graphql(COLLECTIONS_QUERY);
+const collections = data?.collections.nodes ?? [];
+---
+
+<BaseLayout title="Collections">
+  <h1>Collections</h1>
+  {collections.length === 0 ? (
+    <p>No collections yet.</p>
+  ) : (
+    <ul>
+      {collections.map((c) => (
+        <li><a href={`/collections/${c.handle}`}>{c.title}</a></li>
+      ))}
+    </ul>
+  )}
+</BaseLayout>

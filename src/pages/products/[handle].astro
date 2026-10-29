@@ -1,0 +1,45 @@
+---
+import { gql } from '@shopify/hydrogen';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { formatPrice } from '../../lib/money';
+
+const PRODUCT_QUERY = gql(`
+  query Product($handle: String!) {
+    product(handle: $handle) {
+      id
+      title
+      handle
+      descriptionHtml
+      seo { title description }
+      featuredImage { url altText width height }
+      images(first: 10) { nodes { url altText width height } }
+      priceRange {
+        minVariantPrice { amount currencyCode }
+        maxVariantPrice { amount currencyCode }
+      }
+    }
+  }
+`);
+
+const { handle } = Astro.params;
+const { data } = await Astro.locals.storefront.graphql(PRODUCT_QUERY, {
+  variables: { handle: handle! },
+});
+const product = data?.product;
+if (!product) return Astro.rewrite('/404');
+---
+
+<BaseLayout
+  title={product.seo.title ?? product.title}
+  description={product.seo.description}
+  canonical={new URL(`/products/${product.handle}`, Astro.site).href}
+>
+  <article>
+    <h1>{product.title}</h1>
+    <p>{formatPrice(product.priceRange.minVariantPrice)}</p>
+    {product.images.nodes.map((img) => (
+      <img src={img.url} alt={img.altText ?? ''} width={img.width ?? undefined} height={img.height ?? undefined} loading="lazy" />
+    ))}
+    <div set:html={product.descriptionHtml} />
+  </article>
+</BaseLayout>

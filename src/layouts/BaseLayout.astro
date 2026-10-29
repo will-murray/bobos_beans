@@ -1,0 +1,72 @@
+---
+import { fetchMenus, type MenuLink } from '../lib/menus';
+
+interface Props {
+  title: string;
+  description?: string | null;
+  /** Override the canonical URL; defaults to the current path on the site origin. */
+  canonical?: string;
+  noindex?: boolean;
+}
+
+const { title, description, canonical, noindex = false } = Astro.props;
+const siteName = "Bobo's Beans";
+const fullTitle = title === siteName ? title : `${title} – ${siteName}`;
+const canonicalUrl = canonical ?? new URL(Astro.url.pathname, Astro.site).href;
+
+// Navigation comes from the Shopify "main-menu" and "footer" menus so links stay
+// identical to the live theme. Fall back to static links if the menus can't load.
+let main: MenuLink[] = [];
+let footer: MenuLink[] = [];
+try {
+  ({ main, footer } = await fetchMenus(Astro.locals.storefront));
+} catch {
+  main = [
+    { id: 'shop', title: 'shop', href: '/collections/all' },
+    { id: 'about', title: 'about', href: '/pages/about' },
+  ];
+  footer = [
+    { id: 'search', title: 'Search', href: '/search' },
+    { id: 'privacy', title: 'Your Privacy Choices', href: '/pages/data-sharing-opt-out' },
+  ];
+}
+---
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" href="/favicon.ico" />
+    <meta name="generator" content={Astro.generator} />
+    <title>{fullTitle}</title>
+    {description && <meta name="description" content={description} />}
+    <link rel="canonical" href={canonicalUrl} />
+    {noindex && <meta name="robots" content="noindex" />}
+    <meta property="og:site_name" content={siteName} />
+    <meta property="og:title" content={fullTitle} />
+    {description && <meta property="og:description" content={description} />}
+    <meta property="og:url" content={canonicalUrl} />
+  </head>
+  <body>
+    <header>
+      <nav aria-label="Primary">
+        <a href="/">{siteName}</a>
+        {main.map((l) => <a href={l.href}>{l.title}</a>)}
+        <a href="/cart">Cart</a>
+      </nav>
+    </header>
+    <main>
+      <slot />
+    </main>
+    <footer>
+      <nav aria-label="Footer">
+        {footer.map((l) => <a href={l.href}>{l.title}</a>)}
+        <a href="/policies/privacy-policy">Privacy policy</a>
+        <a href="/policies/refund-policy">Refund policy</a>
+        <a href="/policies/shipping-policy">Shipping policy</a>
+        <a href="/policies/terms-of-service">Terms of service</a>
+      </nav>
+    </footer>
+  </body>
+</html>

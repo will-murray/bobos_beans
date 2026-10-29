@@ -1,0 +1,55 @@
+---
+import { gql } from '@shopify/hydrogen';
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { PRODUCT_CARD_FRAGMENT } from '../lib/fragments';
+import { formatPrice } from '../lib/money';
+
+const SEARCH_QUERY = gql(
+  `
+  query Search($term: String!) {
+    search(query: $term, first: 24, types: [PRODUCT]) {
+      nodes { ... on Product { ...ProductCard } }
+    }
+  }
+`,
+  [PRODUCT_CARD_FRAGMENT],
+);
+
+// Shopify themes use ?q= for the search term; keep that for URL parity.
+const term = Astro.url.searchParams.get('q')?.trim() ?? '';
+let results: NonNullable<Awaited<ReturnType<typeof Astro.locals.storefront.graphql<typeof SEARCH_QUERY>>>['data']>['search']['nodes'] = [];
+let searchError: string | undefined;
+let debugDump = '';
+if (term) {
+  const res = await Astro.locals.storefront.graphql(SEARCH_QUERY, { variables: { term } });
+  results = res.data?.search.nodes ?? [];
+  if (res.errors?.length) searchError = res.errors.map((e) => e.message).join('; ');
+  if (import.meta.env.DEV) debugDump = JSON.stringify({ term, data: res.data, errors: res.errors });
+}
+const products = results.filter((n): n is Extract<typeof n, { handle: string }> => 'handle' in n);
+---
+
+<BaseLayout title={term ? `Search: ${term}` : 'Search'} noindex={Boolean(term)}>
+  <h1>Search</h1>
+  <form action="/search" method="get" role="search">
+    <label for="q">Search products</label>
+    <input id="q" name="q" type="search" value={term} />
+    <button type="submit">Search</button>
+  </form>
+  {searchError && <p role="alert">Search failed: {searchError}</p>}
+  {debugDump && <pre data-debug>{debugDump}</pre>}
+  {term && (
+    products.length === 0 ? (
+      <p>No results for “{term}”.</p>
+    ) : (
+      <ul>
+        {products.map((p) => (
+          <li>
+            <a href={`/products/${p.handle}`}>{p.title}</a>
+            <p>{formatPrice(p.priceRange.minVariantPrice)}</p>
+          </li>
+        ))}
+      </ul>
+    )
+  )}
+</BaseLayout>

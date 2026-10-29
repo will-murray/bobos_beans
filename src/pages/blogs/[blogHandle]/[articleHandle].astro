@@ -1,0 +1,47 @@
+---
+import { gql } from '@shopify/hydrogen';
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+
+const ARTICLE_QUERY = gql(`
+  query Article($blogHandle: String!, $articleHandle: String!) {
+    blog(handle: $blogHandle) {
+      handle
+      title
+      articleByHandle(handle: $articleHandle) {
+        id
+        title
+        handle
+        contentHtml
+        excerpt
+        publishedAt
+        authorV2 { name }
+        image { url altText width height }
+        seo { title description }
+      }
+    }
+  }
+`);
+
+const { blogHandle, articleHandle } = Astro.params;
+const { data } = await Astro.locals.storefront.graphql(ARTICLE_QUERY, {
+  variables: { blogHandle: blogHandle!, articleHandle: articleHandle! },
+});
+const blog = data?.blog;
+const article = blog?.articleByHandle;
+if (!blog || !article) return Astro.rewrite('/404');
+---
+
+<BaseLayout title={article.seo?.title ?? article.title} description={article.seo?.description ?? article.excerpt}>
+  <article>
+    <p><a href={`/blogs/${blog.handle}`}>{blog.title}</a></p>
+    <h1>{article.title}</h1>
+    <p>
+      <time datetime={article.publishedAt}>{new Date(article.publishedAt).toLocaleDateString('en-CA')}</time>
+      {article.authorV2 && <span> · {article.authorV2.name}</span>}
+    </p>
+    {article.image && (
+      <img src={article.image.url} alt={article.image.altText ?? ''} width={article.image.width ?? undefined} height={article.image.height ?? undefined} />
+    )}
+    <div set:html={article.contentHtml} />
+  </article>
+</BaseLayout>

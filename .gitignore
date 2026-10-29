@@ -22,3 +22,7 @@ pnpm-debug.log*
 
 # jetbrains setting folder
 .idea/
+
+# hydrogen ts-plugin generated schema envs
+storefront-graphql-env.d.ts
+customer-account-graphql-env.d.ts

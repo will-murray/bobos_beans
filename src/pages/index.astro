@@ -1,16 +1,84 @@
 ---
+import { gql } from '@shopify/hydrogen';
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { PRODUCT_CARD_FRAGMENT } from '../lib/fragments';
+import { formatPrice } from '../lib/money';
+
+const HOME_QUERY = gql(
+  `
+  query Home {
+    shop { name description }
+    collections(first: 10) {
+      nodes { id title handle image { url altText } }
+    }
+    products(first: 12, sortKey: BEST_SELLING) {
+      nodes { ...ProductCard }
+    }
+  }
+`,
+  [PRODUCT_CARD_FRAGMENT],
+);
+
+let data: Awaited<ReturnType<typeof Astro.locals.storefront.graphql<typeof HOME_QUERY>>>['data'] | undefined;
+let setupError: string | undefined;
+try {
+  const result = await Astro.locals.storefront.graphql(HOME_QUERY);
+  data = result.data;
+  if (result.errors?.length) setupError = result.errors.map((e) => e.message).join('; ');
+} catch (error) {
+  setupError = error instanceof Error ? error.message : String(error);
+}
+
+const collections = data?.collections.nodes ?? [];
+const products = data?.products.nodes ?? [];
 ---
 
-<html lang="en">
-	<head>
-		<meta charset="utf-8" />
-		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-		<link rel="icon" href="/favicon.ico" />
-		<meta name="viewport" content="width=device-width" />
-		<meta name="generator" content={Astro.generator} />
-		<title>Astro</title>
-	</head>
-	<body>
-		<h1>Astro</h1>
-	</body>
-</html>
+<BaseLayout title="Bobo's Beans" description={data?.shop.description}>
+  <h1>{data?.shop.name ?? "Bobo's Beans"}</h1>
+
+  {setupError && (
+    <p role="alert">
+      Could not reach the Shopify Storefront API. Check <code>PUBLIC_STORE_DOMAIN</code> and
+      <code>PUBLIC_STOREFRONT_API_TOKEN</code> in <code>.env</code>. ({setupError})
+    </p>
+  )}
+
+  <section aria-labelledby="collections-heading">
+    <h2 id="collections-heading">Collections</h2>
+    {collections.length === 0 ? (
+      <p>No collections yet.</p>
+    ) : (
+      <ul>
+        {collections.map((c) => (
+          <li>
+            <a href={`/collections/${c.handle}`}>
+              {c.image && <img src={c.image.url} alt={c.image.altText ?? ''} width="200" loading="lazy" />}
+              {c.title}
+            </a>
+          </li>
+        ))}
+      </ul>
+    )}
+  </section>
+
+  <section aria-labelledby="products-heading">
+    <h2 id="products-heading">Products</h2>
+    {products.length === 0 ? (
+      <p>No products yet.</p>
+    ) : (
+      <ul>
+        {products.map((p) => (
+          <li>
+            <a href={`/products/${p.handle}`}>
+              {p.featuredImage && (
+                <img src={p.featuredImage.url} alt={p.featuredImage.altText ?? ''} width="200" loading="lazy" />
+              )}
+              {p.title}
+            </a>
+            <p>{formatPrice(p.priceRange.minVariantPrice)}</p>
+          </li>
+        ))}
+      </ul>
+    )}
+  </section>
+</BaseLayout>
