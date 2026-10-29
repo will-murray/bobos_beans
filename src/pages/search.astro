@@ -19,12 +19,10 @@ const SEARCH_QUERY = gql(
 const term = Astro.url.searchParams.get('q')?.trim() ?? '';
 let results: NonNullable<Awaited<ReturnType<typeof Astro.locals.storefront.graphql<typeof SEARCH_QUERY>>>['data']>['search']['nodes'] = [];
 let searchError: string | undefined;
-let debugDump = '';
 if (term) {
   const res = await Astro.locals.storefront.graphql(SEARCH_QUERY, { variables: { term } });
   results = res.data?.search.nodes ?? [];
   if (res.errors?.length) searchError = res.errors.map((e) => e.message).join('; ');
-  if (import.meta.env.DEV) debugDump = JSON.stringify({ term, data: res.data, errors: res.errors });
 }
 const products = results.filter((n): n is Extract<typeof n, { handle: string }> => 'handle' in n);
 ---
@@ -37,7 +35,6 @@ const products = results.filter((n): n is Extract<typeof n, { handle: string }> 
     <button type="submit">Search</button>
   </form>
   {searchError && <p role="alert">Search failed: {searchError}</p>}
-  {debugDump && <pre data-debug>{debugDump}</pre>}
   {term && (
     products.length === 0 ? (
       <p>No results for “{term}”.</p>
